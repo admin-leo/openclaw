@@ -20,6 +20,26 @@ OpenClaw stores control-plane state in a global SQLite database and agent data i
 
 The task registry uses the global control-plane database. Runtime trajectory events live with their sessions in the per-agent database or a configured shared session SQLite store.
 
+### Profile-owned chat bookmarks
+
+The `chat_bookmarks` table lives in the shared control-plane database.
+`src/state/chat-bookmarks.ts` owns its queries and synchronous mutations. The
+canonical schema declares the table and its profile/order index; the first
+successful bookmark creation ensures them. Reading an unused library does not
+create the table, and the numeric schema version is unchanged.
+
+Rows contain a bookmark ID, canonical profile and agent IDs, session key, physical
+session ID, persisted message ID, name, normalized name-search derivative, and
+creation/update timestamps. They do not copy transcript bodies. Names are bounded
+to 70 Unicode characters; list pages default to 50 and cannot exceed 100 rows.
+The unique source key is `(profile_id, agent_id, session_key, session_id, message_id)`.
+
+References survive missing or reset conversations until explicitly removed.
+There is no transcript foreign-key cascade or timed eviction. Profile consolidation
+preserves distinct references; for an identical source, the target profile's name
+wins. These rows do not consume the generic preference-key quota. See
+[Save important messages](/web/control-ui/chat#save-important-messages).
+
 ### ACP replay accounting
 
 The shared `acp_replay_sessions` and `acp_replay_events` tables retain bridge

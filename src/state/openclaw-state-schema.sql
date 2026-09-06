@@ -2577,3 +2577,19 @@ CREATE TABLE IF NOT EXISTS secret_store_entries (
 ) STRICT;
 CREATE INDEX IF NOT EXISTS secret_store_entries_live_idx
   ON secret_store_entries (scope_kind, scope_id, name) WHERE deleted_at_ms IS NULL;
+
+CREATE TABLE IF NOT EXISTS chat_bookmarks (
+  id TEXT PRIMARY KEY NOT NULL,
+  profile_id TEXT NOT NULL,
+  agent_id TEXT NOT NULL,
+  session_key TEXT NOT NULL,
+  session_id TEXT NOT NULL,
+  message_id TEXT NOT NULL,
+  name TEXT NOT NULL CHECK(length(name) BETWEEN 1 AND 70),
+  name_folded TEXT NOT NULL CHECK(length(name_folded) BETWEEN 1 AND 140),
+  created_at_ms INTEGER NOT NULL,
+  updated_at_ms INTEGER NOT NULL,
+  UNIQUE(profile_id, agent_id, session_key, session_id, message_id)
+) STRICT;
+CREATE INDEX IF NOT EXISTS idx_chat_bookmarks_profile_created
+  ON chat_bookmarks(profile_id, created_at_ms DESC, id DESC);

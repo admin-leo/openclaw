@@ -15,6 +15,7 @@ import {
 import { resolveRequestedSessionAgentId } from "../session-request-agent.js";
 import { loadSessionEntry } from "../session-utils.js";
 import { formatForLog } from "../ws-log.js";
+import { chatBookmarkHandlers } from "./chat-bookmarks.js";
 import {
   resolveGlobalAwareNodeChatDeliveryKeys,
   sendGlobalAwareNodeChatPayload,
@@ -44,6 +45,7 @@ export {
 
 export const chatHandlers: GatewayRequestHandlers = {
   ...chatHistoryHandlers,
+  ...chatBookmarkHandlers,
   ...chatMessageGetHandlers,
   "chat.toolTitles": async ({ params, respond }) => {
     if (!assertValidParams(params, validateChatToolTitlesParams, "chat.toolTitles", respond)) {

@@ -44,6 +44,7 @@ type StreamMessageOptions = Pick<
 >;
 
 export type StreamGroupOptions = StreamMessageOptions & {
+  bookmarkAccess?: import("../chat-bookmarks.ts").ChatBookmarkAccess;
   onReply?: (target: MessageReplyTarget) => void;
   onOpenSidebar?: (content: SidebarContent) => void;
   assistant?: AssistantIdentity;

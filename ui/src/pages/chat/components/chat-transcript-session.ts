@@ -25,6 +25,11 @@ export type TranscriptHeader = {
   height: number;
 };
 
+export type MessageRevealOptions = {
+  isCurrent: () => boolean;
+  onRevealed: (visible: boolean) => void;
+};
+
 export type ChatTranscriptSession = {
   readonly expandedAssistantMessages: Map<string, AssistantMessageExpansionState>;
   readonly liveAnnouncementText: string;
@@ -40,7 +45,7 @@ export type ChatTranscriptSession = {
   syncMessageRows(messageRowKeysById: ReadonlyMap<string, string>): void;
   /** Returns the sampled loaded message at or preceding the viewport midpoint. */
   activeMessageId(messageIds: readonly string[]): string | null;
-  revealMessage(messageId: string): boolean;
+  revealMessage(messageId: string, options?: MessageRevealOptions): boolean;
   setContentReady(ready: boolean): void;
   handleFocusIn(event: FocusEvent): void;
   handleFocusOut(event: FocusEvent): void;

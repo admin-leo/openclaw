@@ -655,6 +655,10 @@ const CORE_GATEWAY_METHOD_SPECS = [
   // Public sharing appends so every previously advertised method index remains stable.
   ["session.publicShare.set", "sessions-sharing", "operator.write", "2026.9"],
   ["claws.monitors", "claws-monitors", "operator.admin", "2026.9", CONTROL_PLANE_WRITE],
+  ["chat.bookmarks.list", "chat", "operator.read", "2026.9", { startup: true }],
+  ["chat.bookmarks.create", "chat", "operator.write", "2026.9", { startup: true }],
+  ["chat.bookmarks.rename", "chat", "operator.write", "2026.9", { startup: true }],
+  ["chat.bookmarks.remove", "chat", "operator.write", "2026.9", { startup: true }],
 ] as const satisfies readonly CoreGatewayMethodSpecRow[];
 
 export type CoreGatewayHandlerFamily = Exclude<(typeof CORE_GATEWAY_METHOD_SPECS)[number][1], null>;

@@ -52,7 +52,10 @@ export function renderAgentRunFrame(frame: AgentRunFrameRenderItem, opts: AgentR
     runId: frame.runId,
   };
   const renderFrameGroup = (group: MessageGroup) =>
-    renderMessageGroupContent(group, opts.renderGroupOptions(group));
+    renderMessageGroupContent(group, {
+      ...opts.renderGroupOptions(group),
+      suppressContentActionId: actionOwner?.key,
+    });
   const frameContent = frame.parts.map((part) => {
     if (part.kind === "stream-run") {
       // The frame owns layout continuity; the indicator stays standalone so

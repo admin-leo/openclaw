@@ -26,6 +26,7 @@ import type {
 import { buildCompanionQuestionPrefill } from "../../../lib/chat/companion-question.ts";
 import type { EmbedSandboxMode } from "../../../lib/chat/tool-display.ts";
 import type { UiSessionDefaultsHost } from "../../../lib/sessions/session-key.ts";
+import type { ChatBookmarkAccess } from "../chat-bookmarks.ts";
 import type { TurnRecapWatch } from "../chat-progress.ts";
 import { resetChatThreadState } from "../chat-thread.ts";
 import type { LinkFaviconFetcher } from "../link-favicon-loader.ts";
@@ -46,6 +47,7 @@ import { handleChatSelectionPointerUp, removeChatSelectionPopup } from "./chat-s
 import type { SidebarContent, SidebarFullMessageLoader } from "./chat-sidebar.ts";
 
 export type ChatThreadState = {
+  bookmarkRevealId?: string | null;
   turnRecapWatch: TurnRecapWatch | null;
   searchOpen: boolean;
   searchQuery: string;
@@ -146,6 +148,7 @@ export type ChatThreadProps = ChatSendStatusActions & {
   onSend: () => void;
   onSetReply?: (target: MessageReplyTarget) => void;
   replyMessageAccess?: ReplyMessageAccess;
+  bookmarkAccess?: ChatBookmarkAccess;
   onRewindMessage?: (entryId: string) => Promise<boolean> | boolean;
   onForkMessage?: (entryId: string) => Promise<void> | void;
   onFocusComposer?: () => void;

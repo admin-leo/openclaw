@@ -21412,6 +21412,178 @@ public struct QuestionListResult: Codable, Sendable {
     }
 }
 
+public struct ChatBookmark: Codable, Sendable {
+    public let id: String
+    public let agentid: String
+    public let sessionkey: String
+    public let sessionid: String
+    public let messageid: String
+    public let name: String
+    public let createdat: Int
+    public let updatedat: Int
+
+    public init(
+        id: String,
+        agentid: String,
+        sessionkey: String,
+        sessionid: String,
+        messageid: String,
+        name: String,
+        createdat: Int,
+        updatedat: Int)
+    {
+        self.id = id
+        self.agentid = agentid
+        self.sessionkey = sessionkey
+        self.sessionid = sessionid
+        self.messageid = messageid
+        self.name = name
+        self.createdat = createdat
+        self.updatedat = updatedat
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case agentid = "agentId"
+        case sessionkey = "sessionKey"
+        case sessionid = "sessionId"
+        case messageid = "messageId"
+        case name
+        case createdat = "createdAt"
+        case updatedat = "updatedAt"
+    }
+}
+
+public struct ChatBookmarksListParams: Codable, Sendable {
+    public let agentid: String?
+    public let key: String?
+    public let query: String?
+    public let limit: Int?
+    public let cursor: String?
+
+    public init(
+        agentid: String? = nil,
+        key: String? = nil,
+        query: String? = nil,
+        limit: Int? = nil,
+        cursor: String? = nil)
+    {
+        self.agentid = agentid
+        self.key = key
+        self.query = query
+        self.limit = limit
+        self.cursor = cursor
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case agentid = "agentId"
+        case key
+        case query
+        case limit
+        case cursor
+    }
+}
+
+public struct ChatBookmarksListResult: Codable, Sendable {
+    public let bookmarks: [ChatBookmark]
+    public let nextcursor: String?
+
+    public init(
+        bookmarks: [ChatBookmark],
+        nextcursor: String? = nil)
+    {
+        self.bookmarks = bookmarks
+        self.nextcursor = nextcursor
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case bookmarks
+        case nextcursor = "nextCursor"
+    }
+}
+
+public struct ChatBookmarksCreateParams: Codable, Sendable {
+    public let agentid: String?
+    public let key: String
+    public let sessionid: String
+    public let messageid: String
+    public let name: String
+
+    public init(
+        agentid: String? = nil,
+        key: String,
+        sessionid: String,
+        messageid: String,
+        name: String)
+    {
+        self.agentid = agentid
+        self.key = key
+        self.sessionid = sessionid
+        self.messageid = messageid
+        self.name = name
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case agentid = "agentId"
+        case key
+        case sessionid = "sessionId"
+        case messageid = "messageId"
+        case name
+    }
+}
+
+public struct ChatBookmarksRenameParams: Codable, Sendable {
+    public let bookmarkid: String
+    public let name: String
+
+    public init(
+        bookmarkid: String,
+        name: String)
+    {
+        self.bookmarkid = bookmarkid
+        self.name = name
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case bookmarkid = "bookmarkId"
+        case name
+    }
+}
+
+public struct ChatBookmarksRemoveParams: Codable, Sendable {
+    public let bookmarkid: String
+
+    public init(
+        bookmarkid: String)
+    {
+        self.bookmarkid = bookmarkid
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case bookmarkid = "bookmarkId"
+    }
+}
+
+public struct ChatBookmarksMutationResult: Codable, Sendable {
+    public let bookmark: ChatBookmark
+
+    public init(
+        bookmark: ChatBookmark)
+    {
+        self.bookmark = bookmark
+    }
+}
+
+public struct ChatBookmarksRemoveResult: Codable, Sendable {
+    public let ok: Bool
+
+    public init(
+        ok: Bool)
+    {
+        self.ok = ok
+    }
+}
+
 public struct CapabilityConsentErrorDetails: Codable, Sendable {
     public let capabilityconsentcode: String
     public let pluginid: String

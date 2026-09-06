@@ -8,6 +8,14 @@ import * as plugins from "./plugins.js";
 import * as updateRuns from "./update-runs.js";
 
 export const PluginLifecycleProtocolSchemas = {
+  ChatBookmark: logsChat.ChatBookmarkSchema,
+  ChatBookmarksListParams: logsChat.ChatBookmarksListParamsSchema,
+  ChatBookmarksListResult: logsChat.ChatBookmarksListResultSchema,
+  ChatBookmarksCreateParams: logsChat.ChatBookmarksCreateParamsSchema,
+  ChatBookmarksRenameParams: logsChat.ChatBookmarksRenameParamsSchema,
+  ChatBookmarksRemoveParams: logsChat.ChatBookmarksRemoveParamsSchema,
+  ChatBookmarksMutationResult: logsChat.ChatBookmarksMutationResultSchema,
+  ChatBookmarksRemoveResult: logsChat.ChatBookmarksRemoveResultSchema,
   CapabilityConsentErrorDetails: plugins.CapabilityConsentErrorDetailsSchema,
   HooksStatusParams: hooks.HooksStatusParamsSchema,
   PluginApprovalRequestParams: pluginApprovals.PluginApprovalRequestParamsSchema,

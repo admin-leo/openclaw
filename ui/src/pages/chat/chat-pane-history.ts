@@ -32,7 +32,7 @@ import {
   type ChatHistoryResult,
 } from "./chat-history-snapshot.ts";
 import { loadChatHistory } from "./chat-history.ts";
-import { ChatPaneReplyNavigation } from "./chat-pane-reply-navigation.ts";
+import { ChatPaneBookmarks } from "./chat-pane-bookmarks.ts";
 import {
   CHAT_HISTORY_PREFETCH_EDGE_PX,
   CHAT_HISTORY_INTENT_IDLE_MS,
@@ -52,7 +52,7 @@ import {
   scheduleChatScroll,
 } from "./scroll.ts";
 
-export abstract class ChatPaneHistory extends ChatPaneReplyNavigation {
+export abstract class ChatPaneHistory extends ChatPaneBookmarks {
   private activeCatalogContinuation: symbol | null = null;
   private activeOlderLoad: Promise<boolean> | null = null;
   // Staged prefetch: after a consumed older page, the next page is fetched in

@@ -40,6 +40,7 @@ import {
   resolveChatTranscriptInteractionAnchor,
 } from "./chat-transcript-interaction-anchor.ts";
 import { renderChatTranscriptLayout, type TranscriptRow } from "./chat-transcript-layout.ts";
+import { revealTranscriptMessageBubble } from "./chat-transcript-message-reveal.ts";
 import {
   extractTranscriptRange,
   previewTranscriptRowKeys,
@@ -51,6 +52,7 @@ import {
   CHAT_TRANSCRIPT_SCROLL_RESTORE_STABLE_FRAMES,
   CHAT_TRANSCRIPT_ZERO_MAX_SETTLE_FRAMES,
   type ChatTranscriptSession,
+  type MessageRevealOptions,
   type TranscriptCallbacks,
   type TranscriptHeader,
 } from "./chat-transcript-session.ts";
@@ -565,7 +567,10 @@ export class ChatSessionVirtualizerHost implements ReactiveControllerHost, ChatT
     return precedingId;
   }
 
-  revealMessage(messageId: string): boolean {
+  revealMessage(messageId: string, options?: MessageRevealOptions): boolean {
+    if (options && !options.isCurrent()) {
+      return false;
+    }
     const rowKey = this.messageRowKeysById.get(messageId);
     const rowIndex = rowKey ? this.rowIndexesByKey.get(rowKey) : undefined;
     if (rowIndex === undefined) {
@@ -574,26 +579,20 @@ export class ChatSessionVirtualizerHost implements ReactiveControllerHost, ChatT
     this.cancelScroll();
     const command = (this.scrollCommand = { behavior: resolveScrollBehavior(), target: "index" });
     this.virtualizerController.getVirtualizer().scrollToIndex(rowIndex, { align: "center" });
+    // Native scroll events arrive after Lit can finish this update. Publish the
+    // new offset now so the committed range contains the requested source.
+    this.syncNativeOffset?.();
     this.host.requestUpdate();
     void this.host.updateComplete.then(() => {
-      if (this.scrollCommand !== command) {
+      if (this.scrollCommand !== command || (options && !options.isCurrent())) {
+        options?.onRevealed(false);
         return;
       }
-      const bubble = [
-        ...(this.threadInnerElement?.querySelectorAll<HTMLElement>(".chat-bubble") ?? []),
-      ].find((candidate) => candidate.dataset.entryId === messageId);
-      if (!bubble) {
-        return;
-      }
-      this.threadInnerElement
-        ?.querySelector(".chat-bubble--reply-target")
-        ?.classList.remove("chat-bubble--reply-target");
-      bubble.scrollIntoView?.({ behavior: command.behavior, block: "center" });
-      bubble.classList.add("chat-bubble--reply-target");
-      bubble.addEventListener(
-        "animationend",
-        () => bubble.classList.remove("chat-bubble--reply-target"),
-        { once: true },
+      revealTranscriptMessageBubble(
+        this.threadInnerElement,
+        messageId,
+        command.behavior,
+        options?.onRevealed,
       );
     });
     return true;

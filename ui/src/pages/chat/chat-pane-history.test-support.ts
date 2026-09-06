@@ -5,12 +5,14 @@ import type { GatewayBrowserClient } from "../../api/gateway.ts";
 import type { ApplicationContext } from "../../app/context.ts";
 import type { SessionCapability } from "../../lib/sessions/index.ts";
 import "./chat-pane.ts";
+import type { ChatBookmarkAccess, ChatBookmarks } from "./chat-bookmarks.ts";
 import {
   createInitializationContext,
   createRenderTestChatPane,
   createSessionCapabilityFixture,
 } from "./chat-pane.test-support.ts";
 import type { ChatPageHost } from "./chat-state-host.ts";
+import type { MessageRevealOptions } from "./components/chat-transcript-session.ts";
 
 export function createRefreshChatPane(client?: GatewayBrowserClient) {
   const context: ApplicationContext = {
@@ -57,6 +59,8 @@ export type TestChatPane = HTMLElement & {
   readReplyMessage: (messageId: string) => unknown;
   openReplyMessage: (messageId: string) => void;
   currentReplyNavigationId: (sessionKey: string) => string | null;
+  syncBookmarks: () => ChatBookmarkAccess | undefined;
+  bookmarks: ChatBookmarks;
   hasOlderMessages: () => boolean;
   loadingOlder: boolean;
   resetOlderMessagesViewport: () => void;
@@ -65,7 +69,7 @@ export type TestChatPane = HTMLElement & {
   transcript: {
     activeSessionKey: string | null;
     readonly scrollElement: HTMLDivElement | null;
-    revealMessage: (messageId: string) => boolean;
+    revealMessage: (messageId: string, options?: MessageRevealOptions) => boolean;
     scrollToOffset: (offset: number) => void;
   };
 };

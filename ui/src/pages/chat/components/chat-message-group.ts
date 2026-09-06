@@ -21,6 +21,7 @@ import { extractToolCardsCached } from "../../../lib/chat/tool-cards.ts";
 import { fnv1aUtf16 } from "../../../lib/fnv1a.ts";
 import { resolveIdentityHue } from "../../../lib/identity-avatar.ts";
 import { renderChatAvatar, renderForwardedAvatar } from "../chat-avatar.ts";
+import type { ChatBookmarkAccess } from "../chat-bookmarks.ts";
 import type { TurnRecap } from "../chat-progress.ts";
 import {
   persistedMessageEntryId,
@@ -36,6 +37,8 @@ import { renderRewindButton } from "./chat-message-confirmation.ts";
 import {
   renderMessageActionButtons,
   renderReplyButton,
+  renderBookmarkAction,
+  renderBookmarkName,
   resolveMessageActionDetails,
   type MessageActionDetails,
   type MessageReplyTarget,
@@ -98,6 +101,8 @@ type RenderMessageGroupOptions = Omit<
     showAssistantAvatar?: boolean;
     contextWindow?: number | null;
     onReply?: (target: MessageReplyTarget) => void;
+    bookmarkAccess?: ChatBookmarkAccess;
+    suppressContentActionId?: string;
     resolveReplyPreview?: (replyToId: string) => ReplyPreview | undefined;
     onRewind?: () => void;
     rewindDisabled?: boolean;
@@ -210,7 +215,16 @@ export function renderActivityGroup(
     : summarizeToolGroup(cards.map((card) => ({ name: card.name, args: card.args })));
   const activityDisclosureId = `activity:${firstGroup.key}`;
   const activityBodyId = `activity-body-${fnv1aUtf16(firstGroup.key).toString(16)}`;
-  const activityExpanded = opts.isToolMessageExpanded?.(activityDisclosureId) ?? false;
+  const activityExpanded =
+    Boolean(
+      opts.bookmarkAccess?.revealId &&
+      groups.some((group) =>
+        group.messages.some(
+          (item) => persistedMessageEntryId(item.message) === opts.bookmarkAccess?.revealId,
+        ),
+      ),
+    ) ||
+    (opts.isToolMessageExpanded?.(activityDisclosureId) ?? false);
   const approvalReviews = cards.flatMap((card) => readToolApprovalReviews(card.details));
   const recordedReviewOutcomes = cards.flatMap((card) => {
     const outcome = readToolApprovalReviewOutcome(card.details);
@@ -267,14 +281,27 @@ export function renderActivityGroup(
         ${
           activityExpanded
             ? groups.map((group) =>
-                group.messages.map((item, index) =>
-                  renderGroupedMessage(
-                    item.message,
-                    item.key,
-                    buildGroupedMessageRenderOptions(group, item, index, opts),
-                    opts.onOpenSidebar,
-                  ),
-                ),
+                group.messages.map((item, index) => {
+                  const details = prepareMessageActions(group, item, opts);
+                  return html`
+                    ${renderGroupedMessage(
+                      item.message,
+                      item.key,
+                      buildGroupedMessageRenderOptions(group, item, index, opts, details),
+                      opts.onOpenSidebar,
+                    )}
+                    ${
+                      details?.bookmark
+                        ? html`<div
+                            class="chat-message-actions-row"
+                            data-message-actions-for=${item.key}
+                          >
+                            ${renderMessageActionButtons(details, opts)}
+                          </div>`
+                        : nothing
+                    }
+                  `;
+                }),
               )
             : nothing
         }
@@ -338,14 +365,24 @@ export function renderMessageGroupContent(group: MessageGroup, opts: RenderMessa
   if (isActivityMessageGroup(group)) {
     return renderActivityGroup([group], opts, "continuation");
   }
-  const messages = group.messages.map((item, index) =>
-    renderGroupedMessage(
-      item.message,
-      item.key,
-      buildGroupedMessageRenderOptions(group, item, index, opts),
-      opts.onOpenSidebar,
-    ),
-  );
+  const messages = group.messages.map((item, index) => {
+    const details = prepareMessageActions(group, item, opts);
+    return html`
+      ${renderGroupedMessage(
+        item.message,
+        item.key,
+        buildGroupedMessageRenderOptions(group, item, index, opts, details),
+        opts.onOpenSidebar,
+      )}
+      ${
+        details?.bookmark && item.key !== opts.suppressContentActionId
+          ? html`<div class="chat-message-actions-row" data-message-actions-for=${item.key}>
+              ${renderMessageActionButtons(details, opts)}
+            </div>`
+          : nothing
+      }
+    `;
+  });
   return html`${messages}${
     opts.showToolCalls === false ? nothing : renderBrowserTabPreviews([group], opts)
   }`;
@@ -394,6 +431,7 @@ export function renderMessageGroup(group: MessageGroup, opts: RenderMessageGroup
   const hasUserFooterActions =
     normalizedRole === "user" &&
     Boolean(
+      footerActionDetails?.bookmark ||
       (footerActionDetails?.replyTarget && opts.onReply) ||
       (opts.onRewind && !opts.rewindDisabled) ||
       footerActionDetails?.markdown,
@@ -404,6 +442,7 @@ export function renderMessageGroup(group: MessageGroup, opts: RenderMessageGroup
           class="chat-group-footer-actions"
           data-message-actions-for=${footerActionMessageKey ?? nothing}
         >
+          ${footerActionDetails ? renderBookmarkAction(footerActionDetails, opts.bookmarkAccess) : nothing}
           ${
             footerActionDetails?.replyTarget && opts.onReply
               ? renderReplyButton(footerActionDetails.replyTarget, opts.onReply)
@@ -412,9 +451,10 @@ export function renderMessageGroup(group: MessageGroup, opts: RenderMessageGroup
           ${opts.onRewind && !opts.rewindDisabled ? renderRewindButton(opts.onRewind) : nothing}
           ${
             footerActionDetails?.markdown
-              ? renderMessageActionButtons(footerActionDetails, {})
+              ? renderMessageActionButtons({ markdown: footerActionDetails.markdown }, {})
               : nothing
           }
+          ${footerActionDetails ? renderBookmarkName(footerActionDetails, opts.bookmarkAccess) : nothing}
         </div>
       `
     : nothing;
@@ -487,7 +527,9 @@ export function renderMessageGroup(group: MessageGroup, opts: RenderMessageGroup
                 opts.onOpenSidebar,
               )}
               ${
-                actionDetails && index < lastMessageIndex && !ownsRunFrame
+                actionDetails &&
+                (index < lastMessageIndex || normalizedRole === "tool") &&
+                !ownsRunFrame
                   ? html`
                       <div class="chat-message-actions-row" data-message-actions-for=${item.key}>
                         ${renderMessageActionButtons(actionDetails, opts)}

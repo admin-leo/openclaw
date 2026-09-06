@@ -97,6 +97,10 @@ describe("listGatewayMethods", () => {
       "skills.workshop.read",
       "session.publicShare.set",
       "claws.monitors",
+      "chat.bookmarks.list",
+      "chat.bookmarks.create",
+      "chat.bookmarks.rename",
+      "chat.bookmarks.remove",
     ]);
   });
 

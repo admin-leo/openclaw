@@ -12,6 +12,7 @@ import {
 import { executeSqliteQuerySync, executeSqliteQueryTakeFirstSync } from "../infra/kysely-sync.js";
 import { generateSecureUuid } from "../infra/secure-random.js";
 import { deferSqlitePostCommitPublication } from "../infra/sqlite-post-commit.js";
+import { mergeChatBookmarks } from "./chat-bookmarks.js";
 import {
   openOpenClawStateDatabase,
   runOpenClawStateWriteTransaction,
@@ -380,6 +381,7 @@ function mergeUserProfiles(
   mergeUserGitHubConnection(db, sourceProfileId, targetProfileId);
   for (const mergedProfileId of sourceProfileIds) {
     mergeUserPreferences(db, mergedProfileId, targetProfileId);
+    mergeChatBookmarks(db, mergedProfileId, targetProfileId);
   }
   executeSqliteQuerySync(
     db,

@@ -927,6 +927,10 @@ enum class GatewayMethod(
   SkillsWorkshopRead("skills.workshop.read"),
   SessionPublicShareSet("session.publicShare.set"),
   ClawsMonitors("claws.monitors"),
+  ChatBookmarksList("chat.bookmarks.list"),
+  ChatBookmarksCreate("chat.bookmarks.create"),
+  ChatBookmarksRename("chat.bookmarks.rename"),
+  ChatBookmarksRemove("chat.bookmarks.remove"),
 }
 
 enum class GatewayEvent(

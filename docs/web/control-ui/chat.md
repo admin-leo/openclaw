@@ -254,6 +254,38 @@ Images in your own messages appear above any accompanying text, without a surrou
 
 Messages forwarded by `sessions_send` render as left-aligned speech bubbles with a source-session chip above the message. When avatars are shown, messages from a different known agent use that agent's avatar, or initials in a stable identity color if no avatar is available. Same-agent forwards and unknown senders keep the forward icon. Select the chip to open the source session; hover it to see session progress. Each source session has a stable bubble tint. Forwarded messages without a known source session show the source agent when available, or a generic forwarded-message label. The receiving agent's own replies remain flat text.
 
+## Save important messages
+
+Select the OpenClaw claw immediately before **Reply** beneath a saved message to
+bookmark it. Give the bookmark a name of up to 70 Unicode characters. Select its
+name to rename it, or select the marked claw again to remove it. These actions do
+not edit the conversation or send a message.
+
+Open **Bookmarks** from the chat header's existing three-dot menu to search names
+and jump to a saved message. **Load more** retrieves the next matching page.
+**All conversations** also lists your profile's bookmarks from other conversations,
+including references you need to rename or remove after a conversation is deleted.
+Use **Open conversation** to visit another conversation before jumping to its marker.
+
+On wide panes, the position rail sits to the left of the transcript. Saved points
+use the same claw; hover or focus a marker to read its name. Nearby bookmarks share
+a marker: activate it repeatedly to cycle through them, or choose a name in
+**Bookmarks**. The rail hides when there is not enough left gutter; the menu and
+message actions remain available.
+
+Bookmarks are stored on the Gateway under your existing profile, not just in the
+browser. They survive browser and computer restarts. Reopening the bookmark list,
+reconnecting, or reloading reads the stored state; changes on another client are
+not pushed into an already-open conversation. A shared local Owner profile also
+shares its bookmarks across connections using that profile. See
+[User model](/concepts/user-model).
+
+Creating, renaming, and removing bookmarks requires write scope. Incognito and
+external catalog conversations, pending messages, and connections without a
+durable profile cannot create bookmarks. A reset or missing original message does
+not retarget a bookmark to a replacement conversation: the reference stays
+removable, but it cannot restore deleted transcript content.
+
 ## Chat message width
 
 Drag the side-panel divider to resize a task's **Review** transcript. Messages

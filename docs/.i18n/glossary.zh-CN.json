@@ -2234,5 +2234,9 @@
   {
     "source": "Release channels",
     "target": "发布渠道"
+  },
+  {
+    "source": "Named message bookmarks",
+    "target": "命名消息书签"
   }
 ]

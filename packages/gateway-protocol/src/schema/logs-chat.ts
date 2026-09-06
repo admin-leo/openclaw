@@ -31,6 +31,60 @@ export const LogsTailResultSchema = closedObject({
   skippedBytes: Type.Optional(Type.Integer({ minimum: 0 })),
 });
 
+/** Profile-owned named references to persisted chat messages. */
+export const CHAT_BOOKMARK_NAME_MAX_LENGTH = 70;
+const ChatBookmarkReferenceSchema = Type.String({ minLength: 1, maxLength: 1024 });
+const ChatBookmarkNameSchema = Type.String({
+  minLength: 1,
+  maxLength: CHAT_BOOKMARK_NAME_MAX_LENGTH,
+  pattern: "\\S",
+});
+
+export const ChatBookmarkSchema = closedObject({
+  id: ChatBookmarkReferenceSchema,
+  agentId: ChatBookmarkReferenceSchema,
+  sessionKey: ChatBookmarkReferenceSchema,
+  sessionId: ChatBookmarkReferenceSchema,
+  messageId: ChatBookmarkReferenceSchema,
+  name: ChatBookmarkNameSchema,
+  createdAt: Type.Integer({ minimum: 0 }),
+  updatedAt: Type.Integer({ minimum: 0 }),
+});
+export const ChatBookmarksListParamsSchema = closedObject({
+  agentId: Type.Optional(ChatBookmarkReferenceSchema),
+  key: Type.Optional(ChatBookmarkReferenceSchema),
+  query: Type.Optional(Type.String({ maxLength: 256 })),
+  limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 100 })),
+  cursor: Type.Optional(Type.String({ minLength: 1, maxLength: 512 })),
+});
+export const ChatBookmarksListResultSchema = closedObject({
+  bookmarks: Type.Array(ChatBookmarkSchema, { maxItems: 100 }),
+  nextCursor: Type.Optional(Type.String({ maxLength: 512 })),
+});
+export const ChatBookmarksCreateParamsSchema = closedObject({
+  agentId: Type.Optional(ChatBookmarkReferenceSchema),
+  key: ChatBookmarkReferenceSchema,
+  sessionId: ChatBookmarkReferenceSchema,
+  messageId: ChatBookmarkReferenceSchema,
+  name: ChatBookmarkNameSchema,
+});
+export const ChatBookmarksRenameParamsSchema = closedObject({
+  bookmarkId: ChatBookmarkReferenceSchema,
+  name: ChatBookmarkNameSchema,
+});
+export const ChatBookmarksRemoveParamsSchema = closedObject({
+  bookmarkId: ChatBookmarkReferenceSchema,
+});
+export const ChatBookmarksMutationResultSchema = closedObject({ bookmark: ChatBookmarkSchema });
+export const ChatBookmarksRemoveResultSchema = closedObject({ ok: Type.Literal(true) });
+
+export type ChatBookmark = Static<typeof ChatBookmarkSchema>;
+export type ChatBookmarksListParams = Static<typeof ChatBookmarksListParamsSchema>;
+export type ChatBookmarksListResult = Static<typeof ChatBookmarksListResultSchema>;
+export type ChatBookmarksCreateParams = Static<typeof ChatBookmarksCreateParamsSchema>;
+export type ChatBookmarksRenameParams = Static<typeof ChatBookmarksRenameParamsSchema>;
+export type ChatBookmarksRemoveParams = Static<typeof ChatBookmarksRemoveParamsSchema>;
+
 /** Session-scoped history request used by WebChat and native WebSocket clients. */
 export const ChatHistoryParamsSchema = closedObject({
   sessionKey: NonEmptyString,

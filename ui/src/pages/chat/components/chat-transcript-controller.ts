@@ -7,7 +7,11 @@ import {
   type ChatScrollToEndOptions,
   type ChatSessionScrollPosition,
 } from "../scroll.ts";
-import type { ChatTranscriptSession, TranscriptCallbacks } from "./chat-transcript-session.ts";
+import type {
+  ChatTranscriptSession,
+  MessageRevealOptions,
+  TranscriptCallbacks,
+} from "./chat-transcript-session.ts";
 import { ChatSessionVirtualizerHost } from "./chat-transcript-virtualizer-host.ts";
 
 export class ChatTranscriptController implements ReactiveController {
@@ -65,8 +69,8 @@ export class ChatTranscriptController implements ReactiveController {
     this.sessionVirtualizer?.restoreScrollOffset(offset, onSettled);
   }
 
-  revealMessage(messageId: string): boolean {
-    return this.sessionVirtualizer?.revealMessage(messageId) ?? false;
+  revealMessage(messageId: string, options?: MessageRevealOptions): boolean {
+    return this.sessionVirtualizer?.revealMessage(messageId, options) ?? false;
   }
 
   get scrollElement(): HTMLDivElement | null {

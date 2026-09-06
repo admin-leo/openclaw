@@ -83,7 +83,13 @@ export function projectChatTranscript(
 ): ChatTranscriptProjection {
   const state = getTranscriptState(props.paneId);
   const requestUpdate = props.onRequestUpdate ?? (() => {});
-  const displayStream = props.stream ?? null;
+  const revealId = props.bookmarkAccess?.revealId;
+  if (revealId && state.bookmarkRevealId !== revealId) {
+    closeTranscriptSearch(state, requestUpdate);
+  }
+  state.bookmarkRevealId = revealId ?? null;
+  const revealSource = Boolean(revealId);
+  const showToolCalls = props.showToolCalls || revealSource;
   const sessionHost = props.sessionHost ?? null;
   const activeSession = props.selectedSession;
   const mediaPolicyKey = assistantMediaPolicyKey(activeSession, props.mediaPolicyEpoch);
@@ -130,12 +136,12 @@ export function projectChatTranscript(
     toolMessages: props.toolMessages,
     guardianNotices: props.guardianNotices,
     streamSegments: props.streamSegments,
-    stream: displayStream,
+    stream: props.stream ?? null,
     streamStartedAt: props.streamStartedAt,
     queue: props.queue,
     pendingInputs: props.pendingInputs,
-    showToolCalls: props.showToolCalls,
-    persistCommentary: props.persistCommentary,
+    showToolCalls,
+    persistCommentary: revealSource ? true : props.persistCommentary,
     runWorking: Boolean(props.runWorking),
     runActive: Boolean(props.runActive),
     questionPrompts: props.questionPrompts,
@@ -277,6 +283,7 @@ export function projectChatTranscript(
   const resolveReplyPreview = createReplyPreviewResolver(loadedReplySources, props);
   const sharedMessageRenderOptions = {
     presented: props.presented,
+    bookmarkAccess: props.bookmarkAccess,
     onReply: props.onSetReply
       ? (target) => state.transcriptRenderContext.onSetReply?.(target)
       : undefined,
@@ -322,7 +329,7 @@ export function projectChatTranscript(
       ...sharedMessageRenderOptions,
       latestBrowserTabs,
       showReasoning,
-      showToolCalls: props.showToolCalls,
+      showToolCalls,
       autoExpandToolCalls: Boolean(props.autoExpandToolCalls),
       isToolMessageExpanded: (messageId: string) => expandedToolCards.get(messageId),
       onToggleToolMessageExpanded: toggleToolCardExpanded,
@@ -460,11 +467,13 @@ export function projectChatTranscript(
     collapseCompletedTurnWork(coalesceStreamRuns(chatItems), {
       sessionKey: props.sessionKey,
       runWorking: Boolean(props.runWorking),
-      searchActive: searchFiltering,
+      searchActive: searchFiltering || revealSource,
     }),
-    { searchActive: searchFiltering },
+    { searchActive: searchFiltering || revealSource },
   );
-  const collapsedItems = coalesceAgentRunFrames(semanticItems, { searchActive: searchFiltering });
+  const collapsedItems = coalesceAgentRunFrames(semanticItems, {
+    searchActive: searchFiltering || revealSource,
+  });
   const resolvedRecap = resolveTurnRecap(state, {
     sessionKey: props.sessionKey,
     agentId: props.currentAgentId,
@@ -558,7 +567,9 @@ export function projectChatTranscript(
         ? agentRunFrameGroups(item)
         : item.kind === "group"
           ? [item]
-          : [];
+          : item.kind === "activity-run" || item.kind === "work-group"
+            ? item.groups
+            : [];
     const firstGroup = groups.find((group) => group.role === "assistant") ?? groups[0];
     if (!firstGroup) {
       continue;
@@ -685,6 +696,10 @@ export function projectChatTranscript(
     props.queuedMessageAction?.id,
     props.queuedMessageAction?.label,
     props.queuedMessageAction?.onAction,
+    props.bookmarkAccess?.revision ?? 0,
+    Boolean(props.bookmarkAccess?.edit),
+    Boolean(props.bookmarkAccess?.toggle),
+    props.bookmarkAccess?.revealId ?? "",
     props.replyMessageAccess?.revision ?? 0,
     props.replyMessageAccess?.navigationId ?? "",
     turnRecap === null ? "" : `${turnRecap.runtimeMs}:${turnRecap.outputTokens ?? ""}`,

@@ -238,6 +238,19 @@ export interface ChannelPairingRequests {
   request_id: string;
 }
 
+export interface ChatBookmarks {
+  agent_id: string;
+  created_at_ms: number;
+  id: string;
+  message_id: string;
+  name: string;
+  name_folded: string;
+  profile_id: string;
+  session_id: string;
+  session_key: string;
+  updated_at_ms: number;
+}
+
 export interface ClawCronRefs {
   agent_id: string;
   created_at_ms: number;
@@ -1705,6 +1718,7 @@ export interface DB {
   channel_ingress_events: ChannelIngressEvents;
   channel_pairing_allow_entries: ChannelPairingAllowEntries;
   channel_pairing_requests: ChannelPairingRequests;
+  chat_bookmarks: ChatBookmarks;
   claw_cron_refs: ClawCronRefs;
   claw_installs: ClawInstalls;
   claw_mcp_server_refs: ClawMcpServerRefs;
