@@ -75,9 +75,11 @@ retain restart behavior under a broader no-op prefix.
 
 ## Reusable runtime utilities
 
-Import `resolveExecModePolicy` from `openclaw/plugin-sdk/exec-approvals-runtime`
-to resolve an execution mode and its security/ask policy. Its unused re-export
-from the deprecated `infra-runtime` barrel has been retired.
+The unused `infra-runtime.resolveExecModePolicy` re-export is retired.
+Official plugins can use `resolveExecModePolicy` from
+`openclaw/plugin-sdk/exec-approvals-runtime` for execution mode and security/ask
+policy. This private runtime facade ships JavaScript without packaged TypeScript
+declarations; the retirement provides no equivalent typed third-party replacement.
 
 Native command probes should use `runCommandWithTimeout` from
 `openclaw/plugin-sdk/process-runtime` with `timeoutMs`, the caller's `signal`, and
