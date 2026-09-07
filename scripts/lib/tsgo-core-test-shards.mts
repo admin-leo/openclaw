@@ -40,6 +40,7 @@ export const TSGO_CORE_TEST_SHARDS = [
   },
   { name: "messaging", group: "src", config: "test/tsconfig/tsconfig.core.test.messaging.json" },
   { name: "services", group: "src", config: "test/tsconfig/tsconfig.core.test.services.json" },
+  { name: "state", group: "src", config: "test/tsconfig/tsconfig.core.test.state.json" },
   { name: "other", group: "src", config: "test/tsconfig/tsconfig.core.test.other.json" },
   {
     name: "ui-pages",

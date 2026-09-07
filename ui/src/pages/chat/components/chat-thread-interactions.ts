@@ -300,6 +300,20 @@ export function closeTranscriptSearch(state: ChatThreadState, requestUpdate: () 
   });
 }
 
+/** A new source navigation retires an incompatible search without changing view preferences. */
+export function syncBookmarkReveal(
+  state: ChatThreadState,
+  messageId: string | null | undefined,
+  requestUpdate: () => void,
+): string | undefined {
+  const sourceId = messageId ?? undefined;
+  if (sourceId && state.bookmarkRevealId !== sourceId) {
+    closeTranscriptSearch(state, requestUpdate);
+  }
+  state.bookmarkRevealId = sourceId ?? null;
+  return sourceId;
+}
+
 /** Toggles transcript search and retains the shortcut origin for focus restoration. */
 export function toggleTranscriptSearch(
   paneId: string,

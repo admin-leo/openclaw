@@ -1,7 +1,8 @@
 /* @vitest-environment jsdom */
 
 import { describe, expect, it } from "vitest";
-import { createReplyPreviewResolver, type LoadedReplySource } from "./chat-reply-preview.ts";
+import type { LoadedReplySource } from "../../../lib/chat/chat-types.ts";
+import { createReplyPreviewResolver } from "./chat-reply-preview.ts";
 
 describe("attachment reply previews", () => {
   it.each(["loaded", "fetched"] as const)(

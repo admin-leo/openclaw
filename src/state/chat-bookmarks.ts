@@ -43,7 +43,7 @@ function normalizeName(name: string): string {
 }
 
 // NFC and Unicode lowercase are identical for persisted names and query terms.
-// Lowercasing can expand a 70-code-point label to at most 140 code points.
+// NFC can expand a valid 70-code-point label to a 210-code-point search derivative.
 function foldName(value: string): string {
   return value.normalize("NFC").toLowerCase().normalize("NFC");
 }

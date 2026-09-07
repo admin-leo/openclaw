@@ -13,6 +13,13 @@ import type { SenderIdentity } from "./sender-label.ts";
 
 export type { HumanMention };
 
+/** Persisted source shared by transcript navigation and reply-preview hydration. */
+export type LoadedReplySource = {
+  message: unknown;
+  messageId: string;
+  senderLabel: string;
+};
+
 export type BrowserAnnotationAttachment = {
   modelContext: string;
   title: string;

@@ -59,6 +59,7 @@ import {
   shouldToggleSelectableDisclosure,
   syncToolDisclosureOverflow,
 } from "./chat-tool-cards.ts";
+import { groupHasRevealedSource, visibleActivityGroups } from "./chat-transcript-message-reveal.ts";
 import { shouldAnimateUserTurnEntry } from "./chat-user-turn-entry.ts";
 import { renderTurnRecapRow } from "./chat-working-indicator.ts";
 
@@ -174,7 +175,12 @@ function buildGroupedMessageRenderOptions(
       normalizeRoleForGrouping(group.role) === "user" &&
       shouldAnimateUserTurnEntry(item.key, item.message),
     duplicateCount: item.duplicateCount ?? 1,
-    showToolCalls: opts.showToolCalls ?? true,
+    showToolCalls:
+      opts.showToolCalls !== false ||
+      Boolean(
+        opts.bookmarkAccess?.revealId &&
+        persistedMessageEntryId(item.message) === opts.bookmarkAccess.revealId,
+      ),
     autoExpandToolCalls: opts.autoExpandToolCalls ?? false,
     assistantMessageDisclosure,
     messageActions: actionDetails,
@@ -192,12 +198,17 @@ function isPeerSenderGroup(
 }
 
 export function renderActivityGroup(
-  groups: readonly MessageGroup[],
+  sourceGroups: readonly MessageGroup[],
   opts: RenderMessageGroupOptions,
   presentation: "standalone" | "continuation" = "standalone",
 ) {
+  const groups = visibleActivityGroups(
+    sourceGroups,
+    opts.showToolCalls,
+    opts.bookmarkAccess?.revealId,
+  );
   const firstGroup = groups[0];
-  if (!firstGroup || opts.showToolCalls === false) {
+  if (!firstGroup) {
     return nothing;
   }
   const cards = groups.flatMap((group) =>
@@ -406,7 +417,11 @@ export function renderMessageGroup(group: MessageGroup, opts: RenderMessageGroup
   // Aggregate usage/cost/model across all messages in the group
   const meta = extractGroupMeta(group, opts.contextWindow ?? null);
 
-  if (normalizedRole === "tool" && opts.showToolCalls === false) {
+  if (
+    normalizedRole === "tool" &&
+    opts.showToolCalls === false &&
+    !groupHasRevealedSource(group, opts.bookmarkAccess?.revealId)
+  ) {
     return nothing;
   }
 

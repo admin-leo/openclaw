@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.core.test.shard.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "../../.artifacts/tsgo-cache/core-test-state.tsbuildinfo"
+  },
+  "include": [
+    "../../src/state/**/*.test.ts",
+    "../../src/state/**/*.test.tsx"
+  ],
+  "exclude": [
+    "../../node_modules",
+    "../../dist",
+    "../../**/dist/**"
+  ]
+}

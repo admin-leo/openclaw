@@ -19,10 +19,11 @@ import {
 } from "../../state/chat-bookmarks.js";
 import { resolveUserProfileId } from "../../state/user-profiles.js";
 import { readChatHistoryMessageId } from "../session-history-tail.js";
+import { resolveRequestedSessionAgentId } from "../session-request-agent.js";
 import { createSessionListEntryFilter } from "../session-sharing.js";
 import { loadGatewaySessionEntryReadOnly } from "../session-utils.js";
 import { readChatHistoryPage } from "./chat-history-pages.js";
-import { resolveRequestedChatAgentId, validateChatSelectedAgent } from "./chat-origin-routing.js";
+import { validateChatSelectedAgent } from "./chat-origin-routing.js";
 import { authenticatedProfileUnavailableError } from "./gateway-client-identity.js";
 import type { GatewayRequestHandlerOptions, GatewayRequestHandlers } from "./types.js";
 import { assertValidParams } from "./validation.js";
@@ -72,11 +73,11 @@ function currentSource(request: Request, params: ChatBookmarksCreateParams) {
   ) {
     throw new ChatBookmarkError("Bookmark source is unavailable.");
   }
-  const requested = resolveRequestedChatAgentId({
-    cfg: request.context.getRuntimeConfig(),
-    requestedSessionKey: params.key,
-    agentId: params.agentId,
-  });
+  const requested = resolveRequestedSessionAgentId(
+    request.context.getRuntimeConfig(),
+    params.key,
+    params.agentId,
+  );
   if (!requested.ok) {
     throw new ChatBookmarkError(requested.error.message);
   }
@@ -134,11 +135,11 @@ export const chatBookmarkHandlers: GatewayRequestHandlers = {
         // A profile-wide list needs no session; a scoped list uses the same canonical
         // agent selection as creation, without requiring an unavailable source to exist.
         if (params.key || params.agentId) {
-          const requested = resolveRequestedChatAgentId({
-            cfg: request.context.getRuntimeConfig(),
-            requestedSessionKey: params.key ?? "",
-            agentId: params.agentId,
-          });
+          const requested = resolveRequestedSessionAgentId(
+            request.context.getRuntimeConfig(),
+            params.key,
+            params.agentId,
+          );
           if (!requested.ok) {
             respond(false, undefined, requested.error);
             return;

@@ -1,17 +1,12 @@
 // Reply-preview resolution: memoized quoted-source previews served from
 // already-loaded transcript rows first, then the reply-message access loader.
+import type { LoadedReplySource } from "../../../lib/chat/chat-types.ts";
 import { normalizeMessage } from "../../../lib/chat/message-normalizer.ts";
 import { persistedMessageEntryId } from "../chat-thread.ts";
 import { resolveMessageGroupSenderLabel } from "./chat-message-group.ts";
 import { resolveMessageReplyText } from "./chat-message-markdown.ts";
 import type { MessageReplyTarget } from "./chat-message.ts";
 import type { ChatThreadProps } from "./chat-thread-interactions.ts";
-
-export type LoadedReplySource = {
-  message: unknown;
-  messageId: string;
-  senderLabel: string;
-};
 
 type ResolvedReplyPreview = (MessageReplyTarget & { sourceMessageId: string }) | undefined;
 

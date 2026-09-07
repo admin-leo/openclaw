@@ -2586,7 +2586,7 @@ CREATE TABLE IF NOT EXISTS chat_bookmarks (
   session_id TEXT NOT NULL,
   message_id TEXT NOT NULL,
   name TEXT NOT NULL CHECK(length(name) BETWEEN 1 AND 70),
-  name_folded TEXT NOT NULL CHECK(length(name_folded) BETWEEN 1 AND 140),
+  name_folded TEXT NOT NULL CHECK(length(name_folded) BETWEEN 1 AND 210),
   created_at_ms INTEGER NOT NULL,
   updated_at_ms INTEGER NOT NULL,
   UNIQUE(profile_id, agent_id, session_key, session_id, message_id)

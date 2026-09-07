@@ -1,6 +1,6 @@
 /* @vitest-environment jsdom */
 import { render } from "lit";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import type { ChatBookmark } from "../../../../../packages/gateway-protocol/src/index.js";
 import type { MessageGroup } from "../../../lib/chat/chat-types.ts";
 import { coalesceAgentRunFrames } from "../chat-agent-run-grouping.ts";
@@ -172,6 +172,163 @@ describe("bookmark source actions", () => {
       )!
       .click();
     expect(bookmarkAccess.toggle).toHaveBeenLastCalledWith("early");
+  });
+
+  it.each(["user", "commentary", "tool", "call"])(
+    "keeps unrelated view preferences effective when revealing a %s source",
+    async (target) => {
+      const commentary = (id: string) => ({
+        ...message(id),
+        openclawStreamFallback: { replacementText: id, source: "segment", itemId: id },
+      });
+      const tool = (id: string) => ({
+        ...message(id, "toolResult"),
+        toolCallId: id,
+        toolName: "read",
+      });
+      const bookmarkAccess = access();
+      const props = {
+        ...threadProps("bookmark-preferences", "agent:main:main", [
+          message("user", "user"),
+          commentary("commentary"),
+          commentary("other-commentary"),
+          tool("tool"),
+          tool("other-tool"),
+          {
+            ...message("call"),
+            content: [
+              {
+                type: "tool_use",
+                id: "call",
+                name: "read",
+                input: { path: "selected-call-file.txt" },
+              },
+            ],
+          },
+          {
+            ...message("other-call"),
+            content: [
+              {
+                type: "tool_use",
+                id: "other-call",
+                name: "read",
+                input: { path: "unrelated-call-file.txt" },
+              },
+            ],
+          },
+          message("answer"),
+        ]),
+        showToolCalls: false,
+        persistCommentary: false,
+        bookmarkAccess,
+      };
+      const transcript = createTestTranscript();
+      onTestFinished(() => transcript.hostDisconnected());
+      const container = document.body.appendChild(document.createElement("div"));
+      const draw = async () => {
+        render(renderChatThread(props, transcript), container);
+        transcript.hostUpdated();
+        await flushDeferredRowPrune();
+      };
+      await draw();
+      transcript.hostConnected();
+      await flushDeferredRowPrune();
+      const source = (id: string) =>
+        container.querySelector('.chat-bubble[data-entry-id="' + id + '"]');
+      expect(source("commentary")).toBeNull();
+      expect(source("tool")).toBeNull();
+      bookmarkAccess.revealId = target;
+      bookmarkAccess.revision++;
+      await draw();
+      expect(source(target)).not.toBeNull();
+      expect(source(target)?.closest("[hidden]")).toBeNull();
+      expect(source("other-commentary")).toBeNull();
+      expect(source("other-tool")).toBeNull();
+      expect(container.textContent).not.toContain("unrelated-call-file.txt");
+      props.showToolCalls = true;
+      props.persistCommentary = true;
+      await draw();
+      expect(container.textContent).toContain("other-commentary");
+      props.showToolCalls = false;
+      props.persistCommentary = false;
+      await draw();
+      expect(source("other-commentary")).toBeNull();
+      expect(source("other-tool")).toBeNull();
+      expect(source(target)).not.toBeNull();
+      bookmarkAccess.revealId = target === "tool" ? "commentary" : "tool";
+      bookmarkAccess.revision++;
+      await draw();
+      expect(source(bookmarkAccess.revealId)).not.toBeNull();
+      if (target === "commentary" || target === "tool") {
+        expect(source(target)).toBeNull();
+      }
+      bookmarkAccess.revealId = null;
+      bookmarkAccess.revision++;
+      await draw();
+      expect(source("tool")).toBeNull();
+      expect(source("commentary")).toBeNull();
+    },
+  );
+
+  it("opens only the work disclosure enclosing the selected source", async () => {
+    const turn = (id: string, offset: number) => [
+      {
+        ...message("user-" + id, "user"),
+        timestamp: offset,
+        __openclaw: { id: "user-" + id, runId: id },
+      },
+      {
+        ...message("work-" + id),
+        timestamp: offset + 100,
+        __openclaw: { id: "work-" + id, runId: id },
+        openclawStreamFallback: {
+          replacementText: "work-" + id,
+          source: "segment",
+          itemId: "work-" + id,
+          runId: id,
+        },
+      },
+      {
+        ...message("answer-" + id),
+        timestamp: offset + 200,
+        __openclaw: { id: "answer-" + id, runId: id },
+        phase: "final_answer",
+        stopReason: "stop",
+      },
+    ];
+    const bookmarkAccess = access();
+    const props = {
+      ...threadProps("bookmark-folding", "agent:main:dashboard:bookmark-folding", [
+        ...turn("first", 1000),
+        ...turn("second", 2000),
+      ]),
+      bookmarkAccess,
+    };
+    const transcript = createTestTranscript();
+    onTestFinished(() => transcript.hostDisconnected());
+    const container = document.body.appendChild(document.createElement("div"));
+    const draw = async () => {
+      render(renderChatThread(props, transcript), container);
+      transcript.hostUpdated();
+      await flushDeferredRowPrune();
+    };
+    await draw();
+    transcript.hostConnected();
+    await flushDeferredRowPrune();
+    expect(container.querySelectorAll(".chat-work-group")).toHaveLength(2);
+    expect(container.querySelectorAll(".chat-work-group.is-open")).toHaveLength(0);
+    bookmarkAccess.revealId = "user-second";
+    bookmarkAccess.revision++;
+    await draw();
+    expect(container.querySelectorAll(".chat-work-group")).toHaveLength(2);
+    expect(container.querySelectorAll(".chat-work-group.is-open")).toHaveLength(0);
+    bookmarkAccess.revealId = "work-first";
+    bookmarkAccess.revision++;
+    await draw();
+    expect(container.querySelectorAll(".chat-work-group")).toHaveLength(2);
+    expect(container.querySelectorAll(".chat-work-group.is-open")).toHaveLength(1);
+    expect(container.querySelector('.chat-bubble[data-entry-id="work-first"]')).not.toBeNull();
+    expect(container.querySelector('.chat-bubble[data-entry-id="work-second"]')).toBeNull();
   });
 
   it("invalidates guarded source rows on rename and reveals a filtered source as a real bubble", async () => {

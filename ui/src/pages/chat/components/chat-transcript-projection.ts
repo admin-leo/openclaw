@@ -3,7 +3,7 @@ import { nothing, type TemplateResult } from "lit";
 import { classifySessionKind } from "../../../../../src/sessions/classify-session-kind.js";
 import { i18n, t } from "../../../i18n/index.ts";
 import { latestBrowserTabCards } from "../../../lib/chat/browser-tab-preview.ts";
-import type { ChatItem, MessageGroup } from "../../../lib/chat/chat-types.ts";
+import type { ChatItem, LoadedReplySource, MessageGroup } from "../../../lib/chat/chat-types.ts";
 import { extractTextCached } from "../../../lib/chat/message-extract.ts";
 import { formatSessionArchiveReason } from "../../../lib/sessions/session-archive-reason.ts";
 import {
@@ -48,15 +48,17 @@ import {
   type StreamGroupPart,
 } from "./chat-message.ts";
 import { renderRealtimeTalkConversation } from "./chat-realtime-controls.ts";
-import { createReplyPreviewResolver, type LoadedReplySource } from "./chat-reply-preview.ts";
+import { createReplyPreviewResolver } from "./chat-reply-preview.ts";
 import {
   closeTranscriptSearch,
+  syncBookmarkReveal,
   getTranscriptState,
   type ChatThreadProps,
 } from "./chat-thread-interactions.ts";
 import { renderBrowserTabPreviews } from "./chat-tool-cards.ts";
 import { latestTranscriptAnnouncement } from "./chat-transcript-announcement.ts";
 import type { TranscriptRow } from "./chat-transcript-layout.ts";
+import { indexTranscriptSources, revealedWorkGroupKeys } from "./chat-transcript-message-reveal.ts";
 import {
   guardChatRenderItems,
   trackTranscriptRenderDependencies,
@@ -83,13 +85,7 @@ export function projectChatTranscript(
 ): ChatTranscriptProjection {
   const state = getTranscriptState(props.paneId);
   const requestUpdate = props.onRequestUpdate ?? (() => {});
-  const revealId = props.bookmarkAccess?.revealId;
-  if (revealId && state.bookmarkRevealId !== revealId) {
-    closeTranscriptSearch(state, requestUpdate);
-  }
-  state.bookmarkRevealId = revealId ?? null;
-  const revealSource = Boolean(revealId);
-  const showToolCalls = props.showToolCalls || revealSource;
+  const revealId = syncBookmarkReveal(state, props.bookmarkAccess?.revealId, requestUpdate);
   const sessionHost = props.sessionHost ?? null;
   const activeSession = props.selectedSession;
   const mediaPolicyKey = assistantMediaPolicyKey(activeSession, props.mediaPolicyEpoch);
@@ -140,8 +136,9 @@ export function projectChatTranscript(
     streamStartedAt: props.streamStartedAt,
     queue: props.queue,
     pendingInputs: props.pendingInputs,
-    showToolCalls,
-    persistCommentary: revealSource ? true : props.persistCommentary,
+    showToolCalls: props.showToolCalls,
+    persistCommentary: props.persistCommentary,
+    revealMessageId: revealId,
     runWorking: Boolean(props.runWorking),
     runActive: Boolean(props.runActive),
     questionPrompts: props.questionPrompts,
@@ -149,6 +146,18 @@ export function projectChatTranscript(
     searchOpen: state.searchOpen,
     searchQuery: state.searchQuery,
   });
+  const semanticItems = coalesceActivityRuns(
+    collapseCompletedTurnWork(coalesceStreamRuns(chatItems), {
+      sessionKey: props.sessionKey,
+      runWorking: Boolean(props.runWorking),
+      searchActive: searchFiltering,
+    }),
+    { searchActive: searchFiltering },
+  );
+  const collapsedItems = coalesceAgentRunFrames(semanticItems, {
+    searchActive: searchFiltering,
+  });
+  const revealedWorkKeys = revealedWorkGroupKeys(collapsedItems, revealId);
   const workingIndicator = chatItems.find((item) => item.kind === "reading-indicator");
   const runOutputTokens = workingIndicator?.runId
     ? (props.runUsageById?.get(workingIndicator.runId)?.outputTokens ?? null)
@@ -164,6 +173,8 @@ export function projectChatTranscript(
     searchFiltering || !props.showToolCalls,
   );
   const expandedToolCards = getExpandedToolCards(props.sessionKey);
+  const isWorkExpanded = (key: string) =>
+    expandedToolCards.get(key) === true || revealedWorkKeys.has(key);
   const expandedUserMessages = getExpandedUserMessages(props.sessionKey);
   const expandedAssistantMessages = transcript.expandedAssistantMessages;
   const recoveryKey = (messageId: string) => JSON.stringify([props.fullMessageAgentId, messageId]);
@@ -329,7 +340,7 @@ export function projectChatTranscript(
       ...sharedMessageRenderOptions,
       latestBrowserTabs,
       showReasoning,
-      showToolCalls,
+      showToolCalls: props.showToolCalls,
       autoExpandToolCalls: Boolean(props.autoExpandToolCalls),
       isToolMessageExpanded: (messageId: string) => expandedToolCards.get(messageId),
       onToggleToolMessageExpanded: toggleToolCardExpanded,
@@ -424,7 +435,7 @@ export function projectChatTranscript(
       return renderStreamGroup(item.parts, streamGroupOptions);
     }
     if (item.kind === "work-group") {
-      const workExpanded = expandedToolCards.get(item.key) ?? false;
+      const workExpanded = isWorkExpanded(item.key);
       return renderWorkGroupSummary(item, {
         expanded: workExpanded,
         browserTabPreviews: renderBrowserTabPreviews(item.groups, {
@@ -448,7 +459,7 @@ export function projectChatTranscript(
       return renderAgentRunFrame(item, {
         streamOptions: streamGroupOptions,
         renderGroupOptions,
-        isWorkExpanded: (key) => expandedToolCards.get(key) ?? false,
+        isWorkExpanded,
         onToggleWork: toggleToolCardExpanded,
         turnRecap: turnRecapByGroupKey.get(item.key),
       });
@@ -462,17 +473,6 @@ export function projectChatTranscript(
       });
     }
     return nothing;
-  });
-  const semanticItems = coalesceActivityRuns(
-    collapseCompletedTurnWork(coalesceStreamRuns(chatItems), {
-      sessionKey: props.sessionKey,
-      runWorking: Boolean(props.runWorking),
-      searchActive: searchFiltering || revealSource,
-    }),
-    { searchActive: searchFiltering || revealSource },
-  );
-  const collapsedItems = coalesceAgentRunFrames(semanticItems, {
-    searchActive: searchFiltering || revealSource,
   });
   const resolvedRecap = resolveTurnRecap(state, {
     sessionKey: props.sessionKey,
@@ -580,20 +580,16 @@ export function projectChatTranscript(
       userName: props.userName,
       userAvatar: props.userAvatar,
     });
-    for (const group of groups) {
-      for (const source of group.messages) {
-        const sourceMessageId = persistedMessageEntryId(source.message);
-        // The preview resolves content lazily; indexing only needs persisted identities.
-        if (sourceMessageId) {
-          messageRowKeysById.set(sourceMessageId, item.key);
-          loadedReplySources.set(sourceMessageId, {
-            message: source.message,
-            messageId: source.key,
-            senderLabel,
-          });
-        }
-      }
-    }
+    indexTranscriptSources({
+      groups,
+      rowKeyForGroup: (group) =>
+        item.kind === "work-group" && isWorkExpanded(item.key)
+          ? `${item.key}:${group.key}`
+          : item.key,
+      senderLabel,
+      messageRowKeysById,
+      loadedReplySources,
+    });
   }
   transcript.syncMessageRows(messageRowKeysById);
   let turnRecapOwnerKey: string | null = null;
@@ -606,7 +602,7 @@ export function projectChatTranscript(
   const transcriptRows: TranscriptRow<ChatRenderItem>[] = [];
   for (const item of transcriptItems) {
     transcriptRows.push({ kind: "item", key: item.key, item });
-    if (item.kind === "work-group" && expandedToolCards.get(item.key)) {
+    if (item.kind === "work-group" && isWorkExpanded(item.key)) {
       for (const group of item.groups) {
         transcriptRows.push({ kind: "item", key: `${item.key}:${group.key}`, item: group });
       }

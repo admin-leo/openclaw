@@ -59,6 +59,41 @@ describe("profile-owned chat bookmarks", () => {
     closeOpenClawStateDatabaseForTest();
     expect(listChatBookmarks(owner.id, { query: "öffnung" }, options).bookmarks).toEqual([updated]);
   });
+  it.each(["\u{1D160}", "\uFB2C"])(
+    "preserves valid names whose NFC derivative expands threefold (%s)",
+    (character) => {
+      const { options, owner } = fixture();
+      const name = character.repeat(70);
+      expect(Array.from(name)).toHaveLength(70);
+      expect(Array.from(name.normalize("NFC"))).toHaveLength(210);
+      const created = createChatBookmark(
+        owner.id,
+        name,
+        () => ({ ...source, messageId: "expanded-create" }),
+        options,
+      );
+      const second = createChatBookmark(
+        owner.id,
+        "Rename me",
+        () => ({ ...source, messageId: "expanded-rename" }),
+        options,
+      );
+      const renamed = renameChatBookmark(owner.id, second.id, name, options);
+      expect(created.name).toBe(name);
+      expect(renamed.name).toBe(name);
+      const expectedIds = [created.id, renamed.id].toSorted();
+      expect(
+        listChatBookmarks(owner.id, { query: name.normalize("NFC") }, options)
+          .bookmarks.map((bookmark) => bookmark.id)
+          .toSorted(),
+      ).toEqual(expectedIds);
+      closeOpenClawStateDatabaseForTest();
+      const reopened = listChatBookmarks(owner.id, { query: name }, options).bookmarks;
+      expect(reopened.map((bookmark) => bookmark.id).toSorted()).toEqual(expectedIds);
+      expect(reopened.every((bookmark) => bookmark.name === name)).toBe(true);
+    },
+  );
+
   it("creates storage only on successful admission, preserves schema version, and survives reopen", () => {
     const { options, owner } = fixture();
     const db = openOpenClawStateDatabase(options).db;

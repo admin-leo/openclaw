@@ -52,6 +52,7 @@ import {
   insertionIndexesForBounds,
   type ChatProjection,
   messageMatchesSearchQuery,
+  persistedMessageEntryId,
   queuedSendThreadMessage,
   rawMessageTimestamp,
   insertChatItemsByTimestamp,
@@ -96,6 +97,8 @@ export type BuildChatItemsProps = {
   pendingInputs?: ChatPendingInputsPage["items"];
   showToolCalls: boolean;
   persistCommentary?: boolean;
+  /** One requested persisted source may bypass display preferences, not its neighbors. */
+  revealMessageId?: string;
   /** True while the agent is visibly working (isChatRunWorking). */
   runWorking?: boolean;
   /** True while the current session has an abortable live run. */
@@ -118,6 +121,9 @@ function canvasAssistantItemKey(
 
 export function buildChatItems(props: BuildChatItemsProps): Array<ChatItem | MessageGroup> {
   let items: ChatItem[] = [];
+  const isRevealedSource = (message: unknown) =>
+    props.revealMessageId !== undefined &&
+    persistedMessageEntryId(message) === props.revealMessageId;
   const tools = props.toolMessages.filter(
     (message): message is Record<string, unknown> => asRecord(message) !== null,
   );
@@ -134,7 +140,9 @@ export function buildChatItems(props: BuildChatItemsProps): Array<ChatItem | Mes
     props.messages.filter(
       (message) =>
         !isAssistantHeartbeatAckForDisplay(message) &&
-        (props.persistCommentary !== false || !isKeyedAssistantStreamFallbackMessage(message)),
+        (props.persistCommentary !== false ||
+          isRevealedSource(message) ||
+          !isKeyedAssistantStreamFallbackMessage(message)),
     ),
   );
   const searchFiltering = props.searchOpen === true && Boolean(props.searchQuery?.trim());
@@ -250,7 +258,7 @@ export function buildChatItems(props: BuildChatItemsProps): Array<ChatItem | Mes
       });
     }
 
-    if (!props.showToolCalls && isToolResult) {
+    if (!props.showToolCalls && isToolResult && !isRevealedSource(msg)) {
       continue;
     }
 
