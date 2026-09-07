@@ -76,3 +76,4 @@ export {
   buildPluginApprovalPendingReplyPayload,
   buildPluginApprovalResolvedReplyPayload,
 } from "./approval-renderers.js";
+export { createNativeApprovalControlRegistry } from "./approval-native-controls.js";
