@@ -10,6 +10,7 @@ import {
 } from "openclaw/plugin-sdk/diagnostic-runtime";
 import { initializeGlobalHookRunner } from "openclaw/plugin-sdk/hook-runtime";
 import { createMockPluginRegistry } from "openclaw/plugin-sdk/plugin-test-runtime";
+import { resolveStorePath } from "openclaw/plugin-sdk/session-store-runtime";
 import { describe, expect, it, vi } from "vitest";
 import { readAttemptTerminal } from "./attempt-terminal.test-helper.js";
 import { dynamicToolBuildState } from "./dynamic-tool-build-state.js";
@@ -61,6 +62,77 @@ function activeDiagnosticToolKeys(events: DiagnosticEventPayload[]): Set<string>
 setupRunAttemptTestHooks();
 
 describe("runCodexAppServerAttempt dynamic tools", () => {
+  it("withholds a waiting tool response until its exact transcript receipt commits", async () => {
+    let enterCommit: (() => void) | undefined;
+    const commitEntered = new Promise<void>((resolve) => {
+      enterCommit = resolve;
+    });
+    let releaseCommit: (() => void) | undefined;
+    const commitReleased = new Promise<void>((resolve) => {
+      releaseCommit = resolve;
+    });
+    const providerCommit = vi.fn(async () => {
+      enterCommit?.();
+      await commitReleased;
+      return { kind: "committed" as const, results: [] };
+    });
+    const exec = createRuntimeDynamicTool("exec");
+    exec.execute = vi.fn(async () => ({
+      content: [{ type: "text" as const, text: "waiting" }],
+      details: { runId: "run-waiting", status: "waiting" },
+    }));
+    dynamicToolBuildState.openClawCodingToolsFactory = () => [exec];
+    const harness = createStartedThreadHarness();
+    const params = createParams(
+      path.join(tempDir, "session.jsonl"),
+      path.join(tempDir, "workspace"),
+    );
+    params.runtimePlan = createCodexRuntimePlanFixture();
+    setCodexTestModelSupportsTools(params, true);
+    params.sessionTarget = {
+      agentId: "main",
+      sessionId: params.sessionId,
+      sessionKey: params.sessionKey!,
+      storePath: resolveStorePath(undefined, { agentId: "main" }),
+    };
+    params.hostCapabilities = Object.freeze({
+      ...params.hostCapabilities,
+      [Symbol.for("openclaw.agentHarness.providerTranscriptCommit.v1")]: providerCommit,
+    });
+    const run = runCodexAppServerAttempt(params);
+    let responseSettled = false;
+    try {
+      await harness.waitForMethod("turn/start");
+      const response = harness
+        .handleServerRequest({
+          id: "request-exec-waiting",
+          method: "item/tool/call",
+          params: {
+            threadId: "thread-1",
+            turnId: "turn-1",
+            callId: "call-exec-waiting",
+            namespace: null,
+            tool: "exec",
+            arguments: {},
+          },
+        })
+        .then((value) => {
+          responseSettled = true;
+          return value;
+        });
+      await commitEntered;
+      await Promise.resolve();
+      expect(responseSettled).toBe(false);
+      releaseCommit?.();
+      await expect(response).resolves.toMatchObject({ success: true });
+      expect(providerCommit).toHaveBeenCalledOnce();
+      await harness.completeTurn({ threadId: "thread-1", turnId: "turn-1" });
+      await expect(run).resolves.toBeDefined();
+    } finally {
+      releaseCommit?.();
+    }
+  });
+
   it("acknowledges a terminal sandbox process poll only after Codex accepts its exact result", async () => {
     const process = createProcessPollDeliveryContract("codex-result-delivery");
     dynamicToolBuildState.openClawCodingToolsFactory = () => [

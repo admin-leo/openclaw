@@ -8,8 +8,14 @@ export function recordCodexDynamicToolResult(
   call: CodexDynamicToolCallParams,
   response: CodexDynamicToolRuntimeResponse,
   protocolResponse: CodexDynamicToolCallResponse,
-): void {
-  projector?.recordDynamicToolResult({
+  requiredCommit = false,
+): Promise<void> | undefined {
+  if (!projector) {
+    return requiredCommit
+      ? Promise.reject(new Error("Codex required transcript checkpoint lacks a projector"))
+      : undefined;
+  }
+  return projector.recordDynamicToolResult({
     callId: call.callId,
     tool: call.tool,
     asyncStarted: response.asyncStarted === true,
@@ -22,5 +28,6 @@ export function recordCodexDynamicToolResult(
       response.terminalResolution?.sideEffectEvidence === true,
     contentItems: protocolResponse.contentItems,
     details: response.transcriptDetails,
+    requiredCommit,
   });
 }

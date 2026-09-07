@@ -30,6 +30,10 @@ import {
   rewrapToolWithBeforeToolCallHook,
   runBeforeToolCallHook,
 } from "../agent-tools.before-tool-call.js";
+import {
+  bindCodeModeTranscriptAuthority,
+  CodeModeTranscriptAuthority,
+} from "../code-mode-transcript-authority.js";
 import { createAgentRunRestartAbortError } from "../run-termination.js";
 import {
   attachInternalToolExecutionPreparer,
@@ -54,6 +58,7 @@ const mockRewrap = vi.mocked(rewrapToolWithBeforeToolCallHook);
 const mockRunBefore = vi.mocked(runBeforeToolCallHook);
 const mockCallGatewayTool = vi.mocked(callGatewayTool);
 type HostAttempt = Parameters<typeof createAgentHarnessHostCapabilities>[0]["attempt"];
+const PROVIDER_TRANSCRIPT_COMMIT = Symbol.for("openclaw.agentHarness.providerTranscriptCommit.v1");
 
 type HostRevocationContext = {
   host: ReturnType<typeof createAgentHarnessHostCapabilities>;
@@ -156,6 +161,63 @@ afterEach(() => {
 });
 
 describe("agent harness host capability", () => {
+  it("rejects a provider transcript commit before its retained host owner can reach SQLite", async () => {
+    const { attempt } = await admittedAttempt("run-provider-assertion");
+    const authority = new CodeModeTranscriptAuthority({
+      expectedWriterRunId: "writer",
+      sessionId: "session-1",
+      sessionKey: "agent:main:session-1",
+      storePath: "/not-reached/sessions.json",
+    });
+    const commitPrefix = vi.spyOn(authority, "commitPrefix");
+    bindCodeModeTranscriptAuthority(attempt, authority);
+    const host = createAgentHarnessHostCapabilities({ attempt, pluginId: "codex" });
+    const commit = Reflect.get(host.capabilities, PROVIDER_TRANSCRIPT_COMMIT) as
+      | ((params: { assertCurrent: () => void; entries: [] }) => Promise<unknown>)
+      | undefined;
+    expect(commit).toEqual(expect.any(Function));
+
+    await expect(
+      commit?.({
+        assertCurrent: () => {
+          throw new Error("provider checkpoint replaced");
+        },
+        entries: [],
+      }),
+    ).rejects.toThrow("provider checkpoint replaced");
+    expect(commitPrefix).not.toHaveBeenCalled();
+    host.close();
+  });
+
+  it.each(policyRevocations)(
+    "rejects a retained provider transcript commit before SQLite after $name",
+    async ({ revoke }) => {
+      const { attempt, admission } = await admittedAttempt("run-provider-retained");
+      const authority = new CodeModeTranscriptAuthority({
+        expectedWriterRunId: "writer",
+        sessionId: "session-1",
+        sessionKey: "agent:main:session-1",
+        storePath: "/not-reached/sessions.json",
+      });
+      const commitPrefix = vi.spyOn(authority, "commitPrefix");
+      bindCodeModeTranscriptAuthority(attempt, authority);
+      const host = createAgentHarnessHostCapabilities({ attempt, pluginId: "codex" });
+      const commit = Reflect.get(host.capabilities, PROVIDER_TRANSCRIPT_COMMIT) as
+        | ((params: { assertCurrent: () => void; entries: [] }) => Promise<unknown>)
+        | undefined;
+      if (!commit) {
+        throw new Error("host did not bind its private transcript commit");
+      }
+      try {
+        await revoke({ host, attempt, admission });
+        await expect(commit({ assertCurrent: () => undefined, entries: [] })).rejects.toThrow();
+        expect(commitPrefix).not.toHaveBeenCalled();
+      } finally {
+        host.close();
+      }
+    },
+  );
+
   it.each(["restart", "unrelated scope", "user abort", "timeout"] as const)(
     "preserves the original cancellation when a startup capability closes: %s",
     async (reason) => {

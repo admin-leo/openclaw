@@ -163,7 +163,7 @@ export class CodexToolTranscriptProjection {
       nativePostToolUseRelayEnabled?: boolean;
       prepareNativeMcpAppResultDetails?: (item: CodexThreadItem) => Promise<unknown>;
       trajectoryRecorder?: CodexTrajectoryRecorder | null;
-      checkpointMessage?: (entry: CodexTranscriptCheckpointEntry) => void;
+      checkpointMessage?: (entry: CodexTranscriptCheckpointEntry) => Promise<void> | undefined;
     } = {},
   ) {}
 
@@ -224,16 +224,18 @@ export class CodexToolTranscriptProjection {
       success: boolean;
       contentItems: CodexDynamicToolCallOutputContentItem[];
       details?: unknown;
+      requiredCommit?: boolean;
     },
     resultContentSource?: "network",
-  ): void {
-    this.recordToolResult({
+  ): Promise<void> | undefined {
+    return this.recordToolResult({
       id: params.callId,
       name: params.tool,
       text: collectDynamicToolContentText(params.contentItems),
       isError: !params.success,
       details: params.details,
       ...(resultContentSource ? { resultContentSource } : {}),
+      requiredCommit: params.requiredCommit,
     });
   }
 
@@ -620,7 +622,9 @@ export class CodexToolTranscriptProjection {
     this.options.checkpointMessage?.({ read: () => message });
   }
 
-  private recordToolResult(params: ToolTranscriptResultInput): void {
+  private recordToolResult(
+    params: ToolTranscriptResultInput & { requiredCommit?: boolean },
+  ): Promise<void> | undefined {
     if (!params.id || !params.name || this.resultIds.has(params.id)) {
       return;
     }
@@ -631,12 +635,17 @@ export class CodexToolTranscriptProjection {
       `${this.turnId}:tool:${params.id}:result`,
     );
     this.messages.push(message);
-    this.options.checkpointMessage?.({
+    const receipt = this.options.checkpointMessage?.({
       read: () => message,
       // A linked raw patch output enriches FileChange after item/completed.
       // Keep that result mutable only until the promised raw output arrives.
       ready: () => !this.pendingRawPatchOutputIds.has(params.id),
+      requiredCommit: params.requiredCommit,
     });
+    if (params.requiredCommit && !receipt) {
+      return Promise.reject(new Error("Codex required transcript checkpoint was not enqueued"));
+    }
+    return receipt;
   }
 
   private recordMissingToolError(

@@ -290,10 +290,11 @@ export class CodexAppServerEventProjector extends CodexTurnProjection {
     sideEffectEvidence?: boolean;
     contentItems: CodexDynamicToolCallOutputContentItem[];
     details?: unknown;
-  }): void {
+    requiredCommit?: boolean;
+  }): Promise<void> | undefined {
     this.toolProgressProjection.recordDynamicToolResult(params);
     const source = this.options.resolveDynamicToolResultContentSource?.(params.tool);
-    this.toolTranscriptProjection.recordDynamicToolResult(params, source);
+    return this.toolTranscriptProjection.recordDynamicToolResult(params, source);
   }
 
   markTimedOut(): void {
