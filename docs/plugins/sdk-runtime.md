@@ -1072,16 +1072,14 @@ snapshots; OpenClaw owns all persistence and lifecycle coordination.
 
   </Accordion>
   <Accordion title="Exec policy helpers">
-    `openclaw/plugin-sdk/exec-approvals-runtime` exposes the host's exec mode
-    algebra. `resolveExecModePolicy({ mode, security, ask })` returns the mode,
+    Import `execPolicy` from `openclaw/plugin-sdk/agent-harness-runtime` for the
+    host's exec mode algebra. `execPolicy.resolveExecModePolicy({ mode, security, ask })` returns the mode,
     security, ask, and auto-review settings. An explicit mode determines those
     settings; without one, the helper preserves the security/ask pair and derives
-    its display mode. `minSecurity(a, b)` chooses the more restrictive security
-    value, and `maxAsk(a, b)` chooses the stronger approval requirement. These
-    comparators replace their retired `infra-runtime` re-exports for official
-    plugins. This private runtime facade ships JavaScript without packaged
-    TypeScript declarations; the retirement provides no equivalent typed
-    third-party replacement. Provider adapters retain their own strict input
+    its display mode. `execPolicy.minSecurity(a, b)` chooses the more restrictive
+    security value, and `execPolicy.maxAsk(a, b)` chooses the stronger approval
+    requirement. These typed object members replace the retired `minSecurity`
+    and `maxAsk` exports from `infra-runtime`. Provider adapters retain their own strict input
     validation and native sandbox/approval projection.
   </Accordion>
   <Accordion title="api.runtime.system">
